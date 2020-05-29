@@ -34,7 +34,7 @@ import (
 	"github.com/aws/amazon-ssm-agent/agent/log"
 	mgsContracts "github.com/aws/amazon-ssm-agent/agent/session/contracts"
 	"github.com/aws/amazon-ssm-agent/agent/session/utility"
-	"github.com/kr/pty"
+	"github.com/creack/pty"
 )
 
 var ptyFile *os.File
@@ -63,8 +63,15 @@ func StartPty(
 	if strings.TrimSpace(shellProps.Linux.Commands) == "" || isSessionLogger {
 		cmd = exec.Command("sh")
 	} else {
-		commandArgs := append(utility.ShellPluginCommandArgs, shellProps.Linux.Commands)
-		cmd = exec.Command("sh", commandArgs...)
+		//commandArgs := append(utility.ShellPluginCommandArgs, shellProps.Linux.Commands)
+		//cmd = exec.Command("sh", commandArgs...)
+		//cmd = exec.Command(shellProps.Linux.Commands)
+		commands := strings.Split(shellProps.Linux.Commands, " ")
+		if len(commands) == 1 {
+			cmd = exec.Command(commands[0])
+		} else if len(commands) > 1 {
+			cmd = exec.Command(commands[0], commands[1:]...)
+		}
 	}
 
 	//TERM is set as linux by pty which has an issue where vi editor screen does not get cleared.
