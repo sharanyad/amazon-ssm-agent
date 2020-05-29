@@ -17,10 +17,15 @@ package websocketutil
 import (
 	"errors"
 	"net/http"
+	"io/ioutil"
+	"crypto/x509"
+	"crypto/tls"
 
 	"github.com/aws/amazon-ssm-agent/agent/log"
 	"github.com/gorilla/websocket"
 )
+
+const customCertFile = "/var/lib/ecs/certs/ca-certificates.crt"
 
 // IWebsocketUtil is the interface for the websocketutil.
 type IWebsocketUtil interface {
@@ -38,10 +43,21 @@ type WebsocketUtil struct {
 func NewWebsocketUtil(logger log.T, dialerInput *websocket.Dialer) *WebsocketUtil {
 
 	var websocketUtil *WebsocketUtil
+	cert, err := ioutil.ReadFile(customCertFile)
+        if err != nil {
+                //log.Errorf("Couldn't load file: %s", err)
+                return nil
+        }
+        certPool := x509.NewCertPool()
+        certPool.AppendCertsFromPEM(cert)
 
+        conf := &tls.Config{
+                RootCAs: certPool,
+        }
+	d := websocket.Dialer{TLSClientConfig: conf}
 	if dialerInput == nil {
 		websocketUtil = &WebsocketUtil{
-			dialer: websocket.DefaultDialer,
+			dialer: &d,
 			log:    logger,
 		}
 	} else {

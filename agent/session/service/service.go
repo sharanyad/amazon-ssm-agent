@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"crypto/tls"
+	"crypto/x509"
 	"net"
 	"net/http"
 	"net/url"
@@ -44,6 +46,7 @@ import (
 const (
 	mgsClientTimeout      = time.Second * 15
 	httpStatusCodeCreated = 201
+	customCertFile	      = "/var/lib/ecs/certs/ca-certificates.crt"
 )
 
 // Service is an interface to the message gateway service operation v1.
@@ -98,7 +101,6 @@ func NewService(log log.T, mgsConfig appconfig.MgsConfig, connectionTimeout time
 			}
 		}
 	}
-
 	// capture Transport so we can use it to cancel requests
 	tr := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -128,9 +130,20 @@ var makeRestcall = func(request []byte, methodType string, url string, region st
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign the request: %s", err)
 	}
+	cert, err := ioutil.ReadFile(customCertFile)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't load file: %s", err)
+	}
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(cert)
 
+	conf := &tls.Config{
+		RootCAs: certPool,
+	}
+	tr := &http.Transport{TLSClientConfig: conf}
 	client := &http.Client{
 		Timeout: mgsClientTimeout,
+		Transport: tr,
 	}
 
 	resp, err := client.Do(httpRequest)
